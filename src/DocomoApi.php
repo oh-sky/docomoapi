@@ -3,13 +3,18 @@ namespace OhSky\DocomoApi;
 
 use CURLFile;
 use finfo;
+use Curl\Curl;
 
 class DocomoApi
 {
     const USER_AGENT = 'OhSky Docomo API Client';
+    /** @var Curl $curl */
     protected $curl         = null;
+    /** @var string $apiKey */
     protected $apiKey       = '';
+    /** @var string $clientId */
     protected $clientId     = '';
+    /** @var string $clientSecret */
     protected $clientSecret = '';
 
     public function __construct($apiKey = '', $clientId = '', $clientSecret = '')
@@ -22,14 +27,11 @@ class DocomoApi
 
     protected function init()
     {
-        if (is_resource($this->curl)) {
-            curl_close($this->curl);
+        if ($this->curl instanceof Curl) {
+            $this->curl->close();
         }
-        $this->curl = curl_init();
-        curl_setopt_array($this->curl, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_USERAGENT => self::USER_AGENT,
-        ]);
+        $this->curl = new Curl();
+        $this->curl->setUserAgent(self::USER_AGENT);
     }
 
     /**
@@ -41,16 +43,13 @@ class DocomoApi
      */
     protected function post($url, $data = [], $headers = [], $fileUpload = false)
     {
-        curl_setopt_array($this->curl, [
-            CURLOPT_POST => true,
-            CURLOPT_URL => $this->createRequestUri($url),
-            CURLOPT_HTTPHEADER => $headers,
-        ]);
-        if ($fileUpload) {
-            curl_setopt($this->curl, CURLOPT_SAFE_UPLOAD, true);
+        foreach ($headers as $key => $value) {
+            $this->curl->setHeader($key, $value);
         }
-        curl_setopt($this->curl, CURLOPT_POSTFIELDS, $data);
-        $res = curl_exec($this->curl);
+        if ($fileUpload) {
+            $this->curl->setOpt(CURLOPT_SAFE_UPLOAD, true);
+        }
+        $res = $this->curl->post($url, $data);
         $this->checkResponseStatus();
         return json_decode($res);
     }
@@ -80,7 +79,7 @@ class DocomoApi
                 $data[$key] = $file;
             }
         }
-        return $this->post($url, $data, $headers, true);
+        return $this->post($this->createRequestUri($url), $data, $headers, true);
     }
 
     private function createRequestUri($url)
@@ -92,9 +91,8 @@ class DocomoApi
 
     private function checkResponseStatus()
     {
-        $info = curl_getinfo($this->curl);
-        if ($info['http_code'] >= 400) {
-            throw new DocomoApiException("Response status: {$info['http_code']}");
+        if ($this->curl->error) {
+            throw new DocomoApiException("Response status: {$this->curl->errorCode}: {$this->curl->errorMessage}");
         }
     }
 }
