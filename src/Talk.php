@@ -15,7 +15,6 @@ class Talk extends DocomoApi
      * @param string $utt 発話内容
      * @param boolean $kaiwa 会話を継続するかどうかフラグ
      * @return array
-     * @see https://dev.smt.docomo.ne.jp/?p=docs.api.page&api_name=image_recognition&p_name=category_classify#tag01
      */
     public function request($utt, $kaiwa = false)
     {
